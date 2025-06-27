@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Especialista em Normativos</title>
+</head>
+<body>
+  <h1>Especialista em Normativos</h1>
+  <textarea id="pergunta" rows="4" cols="50" placeholder="Digite sua pergunta aqui..."></textarea><br>
+  <button onclick="enviar()">Perguntar</button>
+  <pre id="resposta"></pre>
+
+  <script>
+    async function enviar() {
+      const pergunta = document.getElementById("pergunta").value;
+
+      const resposta = await fetch("https://hook.us1.make.com/uqw7tydf8q3gamfvrqcj8wvbn1ujdk9e", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pergunta })
+      });
+
+      const data = await resposta.text(); // ou use .json() se seu Make retornar JSON
+      document.getElementById("resposta").innerText = data;
+    }
+  </script>
+</body>
+</html>
