@@ -1,27 +1,40 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <title>Especialista em Normativos</title>
+  <title>Assistente com Vector Store</title>
 </head>
 <body>
-  <h1>Especialista em Normativos</h1>
-  <textarea id="pergunta" rows="4" cols="50" placeholder="Digite sua pergunta aqui..."></textarea><br>
-  <button onclick="enviar()">Perguntar</button>
-  <pre id="resposta"></pre>
+  <h1>Faça sua pergunta</h1>
+  <input type="text" id="pergunta" placeholder="Digite sua pergunta aqui">
+  <button onclick="enviar()">Enviar</button>
+
+  <h2>Resposta:</h2>
+  <div id="resposta"></div>
 
   <script>
     async function enviar() {
-      const pergunta = document.getElementById("pergunta").value;
+      const pergunta = document.getElementById('pergunta').value;
+      const respostaDiv = document.getElementById('resposta');
 
-      const resposta = await fetch("https://hook.us1.make.com/uqw7tydf8q3gamfvrqcj8wvbn1ujdk9e", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ pergunta })
-      });
+      // Limpa a resposta anterior
+      respostaDiv.textContent = 'Pensando...';
 
-      const data = await resposta.text(); // ou use .json() se seu Make retornar JSON
-      document.getElementById("resposta").innerText = data;
+      try {
+        const response = await fetch('https://hook.us1.make.com/SEU_WEBHOOK_URL', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ pergunta: pergunta })
+        });
+
+        const data = await response.json();
+        respostaDiv.textContent = data.resposta || 'Sem resposta recebida.';
+      } catch (err) {
+        respostaDiv.textContent = 'Erro ao buscar resposta.';
+        console.error(err);
+      }
     }
   </script>
 </body>
