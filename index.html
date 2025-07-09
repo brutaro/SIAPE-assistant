@@ -27,6 +27,13 @@
             box-sizing: border-box;
             animation: rotation 1s linear infinite;
         }
+        /* >>>>>>> INÍCIO DA CORREÇÃO <<<<<<< */
+        #answer-text {
+            white-space: pre-wrap; /* Respeita as quebras de linha e parágrafos */
+            word-wrap: break-word; /* Garante a quebra de palavras muito longas */
+        }
+        /* >>>>>>> FIM DA CORREÇÃO <<<<<<< */
+
         @keyframes rotation {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
@@ -36,13 +43,11 @@
 <body class="flex items-center justify-center min-h-screen p-4">
 
     <div class="card w-full max-w-2xl p-6 md:p-8">
-        <!-- Cabeçalho -->
         <div class="text-center mb-6">
             <h1 class="text-3xl font-bold text-gray-800">Vivi IA</h1>
             <p class="text-gray-500 mt-1">Sua especialista em Gestão de Pessoas e SIAPE.</p>
         </div>
 
-        <!-- Formulário de Pergunta -->
         <form id="rag-form" class="space-y-4">
             <div>
                 <label for="question-input" class="block text-sm font-medium text-gray-700 mb-1">Sua dúvida:</label>
@@ -53,15 +58,12 @@
             </button>
         </form>
 
-        <!-- Seção de Resposta e Carregamento -->
         <div id="response-container" class="mt-8">
-            <!-- Estado de Carregamento (Inicialmente Oculto) -->
             <div id="loading-state" class="hidden text-center p-6 border-t border-gray-200">
                 <div class="loader mx-auto"></div>
                 <p id="joke-text" class="text-gray-600 mt-4 text-sm animate-pulse"></p>
             </div>
 
-            <!-- Resposta Final (Inicialmente Oculto) -->
             <div id="answer-state" class="hidden border-t border-gray-200 pt-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-3">Resposta da Vivi IA:</h2>
                 <div id="answer-text" class="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-lg"></div>
@@ -78,7 +80,7 @@
         const jokeText = document.getElementById('joke-text');
 
         // Cole aqui a URL do seu webhook do Make.com
-        const MAKE_WEBHOOK_URL = "https://hook.us1.make.com/uqw7tydf8q3gamfvrqcj8wvbn1ujdk9e";
+        const MAKE_WEBHOOK_URL = "COLE_A_URL_DO_SEU_WEBHOOK_DO_MAKE_AQUI";
 
         const jokes = [
             "Analisando as portarias... Tomara que não tenham revogado a lei da gravidade.",
@@ -98,7 +100,7 @@
                 return;
             }
             
-            if (!MAKE_WEBHOOK_URL.startsWith("https://hook.us1.make.com/")) {
+            if (!MAKE_WEBHOOK_URL || !MAKE_WEBHOOK_URL.startsWith("https://hook.us1.make.com/")) {
                 alert('ERRO: A URL do webhook do Make.com não foi configurada corretamente no código HTML.');
                 return;
             }
