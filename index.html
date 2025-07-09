@@ -6,50 +6,26 @@
     <title>Vivi IA - Assistente de Gestão de Pessoas</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
+        /* O CSS continua o mesmo */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #f0f2f5;
-        }
-        .card {
-            background-color: white;
-            border-radius: 16px;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-            transition: all 0.3s ease-in-out;
-        }
-        .loader {
-            width: 48px;
-            height: 48px;
-            border: 5px solid #1d4ed8;
-            border-bottom-color: transparent;
-            border-radius: 50%;
-            display: inline-block;
-            box-sizing: border-box;
-            animation: rotation 1s linear infinite;
-        }
-        /* >>>>>>> INÍCIO DA CORREÇÃO <<<<<<< */
-        #answer-text {
-            white-space: pre-wrap; /* Respeita as quebras de linha e parágrafos */
-            word-wrap: break-word; /* Garante a quebra de palavras muito longas */
-        }
-        /* >>>>>>> FIM DA CORREÇÃO <<<<<<< */
-
-        @keyframes rotation {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        body { font-family: 'Inter', sans-serif; background-color: #f0f2f5; }
+        .card { background-color: white; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+        .loader { width: 48px; height: 48px; border: 5px solid #1d4ed8; border-bottom-color: transparent; border-radius: 50%; display: inline-block; box-sizing: border-box; animation: rotation 1s linear infinite; }
+        #answer-text { white-space: pre-wrap; word-wrap: break-word; }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
     <div class="card w-full max-w-2xl p-6 md:p-8">
+        <!-- O HTML do cabeçalho e do formulário continua o mesmo -->
         <div class="text-center mb-6">
             <h1 class="text-3xl font-bold text-gray-800">Vivi IA</h1>
             <p class="text-gray-500 mt-1">Sua especialista em Gestão de Pessoas e SIAPE.</p>
         </div>
-
         <form id="rag-form" class="space-y-4">
-            <div>
+            <!-- ... (o formulário continua o mesmo) ... -->
+             <div>
                 <label for="question-input" class="block text-sm font-medium text-gray-700 mb-1">Sua dúvida:</label>
                 <textarea id="question-input" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="Ex: Quais são as formas de vacância de cargo público?"></textarea>
             </div>
@@ -58,86 +34,107 @@
             </button>
         </form>
 
+        <!-- Seção de Resposta (com novo campo para fontes) -->
         <div id="response-container" class="mt-8">
             <div id="loading-state" class="hidden text-center p-6 border-t border-gray-200">
                 <div class="loader mx-auto"></div>
                 <p id="joke-text" class="text-gray-600 mt-4 text-sm animate-pulse"></p>
             </div>
-
             <div id="answer-state" class="hidden border-t border-gray-200 pt-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-3">Resposta da Vivi IA:</h2>
                 <div id="answer-text" class="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-lg"></div>
+                <!-- <<<<< NOVO CAMPO PARA AS FONTES >>>>> -->
+                <div id="sources-container" class="mt-4">
+                    <h3 class="text-sm font-semibold text-gray-600">Fontes Consultadas:</h3>
+                    <div id="sources-list" class="text-xs text-gray-500 mt-1"></div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
+        // Seletores dos novos elementos
+        const sourcesContainer = document.getElementById('sources-container');
+        const sourcesList = document.getElementById('sources-list');
+        const RAILWAY_API_URL = "https://rag-api-siape-production.up.railway.app/query";
+        
+        // O resto dos seletores e a lista de piadas continuam os mesmos
         const form = document.getElementById('rag-form');
         const questionInput = document.getElementById('question-input');
         const loadingState = document.getElementById('loading-state');
         const answerState = document.getElementById('answer-state');
         const answerText = document.getElementById('answer-text');
         const jokeText = document.getElementById('joke-text');
-
-        // Cole aqui a URL do seu webhook do Make.com
-        const MAKE_WEBHOOK_URL = "https://hook.us1.make.com/uqw7tydf8q3gamfvrqcj8wvbn1ujdk9e";
-
-        const jokes = [
-            "Analisando as portarias... Tomara que não tenham revogado a lei da gravidade.",
-            "Consultando o SIAPE... Ele disse que volta em 5 minutos, há 10 anos.",
-            "Buscando na base de conhecimento... É maior que a fila do INSS.",
-            "Isso me lembra daquela vez que um servidor pediu férias para o ano de 1998. Em 2024.",
-            "Processando... Se demorar muito, a culpa é de um processo que foi para a mesa errada.",
-            "Só um instante, estou lendo a Lei 8.112 de novo. Sempre tem uma novidade."
-        ];
+        const jokes = ["Analisando as portarias...", "Consultando o SIAPE...", "Buscando na base de conhecimento..."];
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             const question = questionInput.value.trim();
+            if (!question) return;
 
-            if (!question) {
-                alert('Por favor, digite uma pergunta.');
-                return;
-            }
-            
-            if (!MAKE_WEBHOOK_URL || !MAKE_WEBHOOK_URL.startsWith("https://hook.us1.make.com/")) {
-                alert('ERRO: A URL do webhook do Make.com não foi configurada corretamente no código HTML.');
-                return;
-            }
-
-            // 1. Prepara a UI para o carregamento
+            // Prepara a UI
             answerState.classList.add('hidden');
+            sourcesContainer.classList.add('hidden');
+            answerText.textContent = '';
+            sourcesList.innerHTML = '';
             loadingState.classList.remove('hidden');
-            
-            // Mostra uma piada aleatória
-            const randomJoke = jokes[Math.floor(Math.random() * jokes.length)];
-            jokeText.textContent = randomJoke;
+            jokeText.textContent = jokes[Math.floor(Math.random() * jokes.length)];
 
             try {
-                // 2. Envia a pergunta para o Make.com
-                const response = await fetch(MAKE_WEBHOOK_URL, {
+                // <<<<< LÓGICA DO FETCH ATUALIZADA PARA O NOVO PROTOCOLO >>>>>
+                const response = await fetch(RAILWAY_API_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ question: question }),
                 });
 
-                if (!response.ok) {
-                    throw new Error(`Erro na rede: ${response.statusText}`);
-                }
+                if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
 
-                // 3. Recebe a resposta como texto puro
-                const finalAnswer = await response.text();
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let sourcesReceived = false;
 
-                // 4. Exibe a resposta final
-                answerText.textContent = finalAnswer;
                 loadingState.classList.add('hidden');
                 answerState.classList.remove('hidden');
 
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    
+                    buffer += decoder.decode(value, { stream: true });
+
+                    // Procura pelo nosso separador ---
+                    if (!sourcesReceived && buffer.includes('\n---\n')) {
+                        const parts = buffer.split('\n---\n');
+                        const sourcesJsonString = parts[0];
+                        buffer = parts.slice(1).join('\n---\n'); // Guarda o resto no buffer
+
+                        try {
+                            const data = JSON.parse(sourcesJsonString);
+                            if (data.sources && data.sources.length > 0) {
+                                sourcesList.innerHTML = data.sources.map(s => `<span class="inline-block bg-gray-200 rounded-full px-2 py-1 mr-1 mb-1">${s}</span>`).join('');
+                                sourcesContainer.classList.remove('hidden');
+                            }
+                        } catch (jsonError) {
+                            console.error("Erro ao parsear JSON das fontes:", jsonError);
+                        }
+                        sourcesReceived = true;
+                    }
+                    
+                    if (sourcesReceived) {
+                        answerText.textContent += buffer;
+                        buffer = ''; // Limpa o buffer após exibir
+                    }
+                }
+                // Exibe qualquer resto do buffer
+                if (buffer && sourcesReceived) {
+                    answerText.textContent += buffer;
+                }
+
             } catch (error) {
                 console.error('Falha ao buscar a resposta:', error);
-                answerText.textContent = 'Desculpe, ocorreu um erro ao tentar me comunicar. Verifique o console para mais detalhes.';
+                answerText.textContent = 'Desculpe, ocorreu um erro ao tentar me comunicar.';
                 loadingState.classList.add('hidden');
                 answerState.classList.remove('hidden');
             }
