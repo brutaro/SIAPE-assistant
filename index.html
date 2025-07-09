@@ -48,89 +48,109 @@
     </div>
 
     <script>
-        const form = document.getElementById('rag-form');
-        const questionInput = document.getElementById('question-input');
-        const loadingState = document.getElementById('loading-state');
-        const answerState = document.getElementById('answer-state');
-        const answerText = document.getElementById('answer-text');
-        const jokeText = document.getElementById('joke-text');
-        const sourcesContainer = document.getElementById('sources-container');
-        const sourcesList = document.getElementById('sources-list');
-        
-        const RAILWAY_API_URL = "https://rag-api-siape-production.up.railway.app/query";
-        const jokes = ["Analisando as portarias...", "Consultando o SIAPE...", "Buscando na base de conhecimento..."];
+    const form = document.getElementById('rag-form');
+    const questionInput = document.getElementById('question-input');
+    const loadingState = document.getElementById('loading-state');
+    const answerState = document.getElementById('answer-state');
+    const answerText = document.getElementById('answer-text');
+    const jokeText = document.getElementById('joke-text');
+    const sourcesContainer = document.getElementById('sources-container');
+    const sourcesList = document.getElementById('sources-list');
+    
+    const RAILWAY_API_URL = "https://rag-api-siape-production.up.railway.app/query";
+    const jokes = ["Analisando as portarias...", "Consultando o SIAPE...", "Buscando na base de conhecimento..."];
 
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const question = questionInput.value.trim();
-            if (!question) return;
+    let conversationHistory = [];
+    
+    // <<<<< NOVO: Defina o tamanho da janela de memória >>>>>
+    // Manterá as últimas 4 mensagens (2 pares de pergunta/resposta).
+    const HISTORY_WINDOW_SIZE = 4; 
 
-            // Prepara a UI
-            answerState.classList.add('hidden');
-            sourcesContainer.classList.add('hidden');
-            answerText.textContent = '';
-            sourcesList.innerHTML = '';
-            loadingState.classList.remove('hidden');
-            jokeText.textContent = jokes[Math.floor(Math.random() * jokes.length)];
+    form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const question = questionInput.value.trim();
+        if (!question) return;
 
-            try {
-                const response = await fetch(RAILWAY_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ question: question }),
-                });
+        // Prepara a UI
+        answerState.classList.add('hidden');
+        sourcesContainer.classList.add('hidden');
+        let currentAnswer = '';
+        answerText.textContent = '';
+        sourcesList.innerHTML = '';
+        loadingState.classList.remove('hidden');
+        jokeText.textContent = jokes[Math.floor(Math.random() * jokes.length)];
 
-                if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
+        try {
+            // <<<<< ALTERADO: Pega apenas a "fatia" mais recente do histórico >>>>>
+            const recentHistory = conversationHistory.slice(-HISTORY_WINDOW_SIZE);
 
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-                let sourcesReceived = false;
+            const response = await fetch(RAILWAY_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    question: question,
+                    history: recentHistory // Envia apenas o histórico recente
+                }),
+            });
 
-                loadingState.classList.add('hidden');
-                answerState.classList.remove('hidden');
+            if (!response.ok) throw new Error(`Erro na rede: ${response.statusText}`);
 
-                while (true) {
-                    const { value, done } = await reader.read();
-                    if (done) break;
-                    
-                    buffer += decoder.decode(value, { stream: true });
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+            let sourcesReceived = false;
 
-                    if (!sourcesReceived && buffer.includes('\n---\n')) {
-                        const parts = buffer.split('\n---\n', 2);
-                        const sourcesJsonString = parts[0];
-                        buffer = parts[1] || ''; // O resto do buffer é o início da resposta
+            loadingState.classList.add('hidden');
+            answerState.classList.remove('hidden');
 
-                        try {
-                            const data = JSON.parse(sourcesJsonString);
-                            if (data.sources && data.sources.length > 0) {
-                                sourcesList.innerHTML = data.sources.map(s => `<span class="inline-block bg-gray-200 rounded-full px-2 py-1">${s}</span>`).join('');
-                                sourcesContainer.classList.remove('hidden');
-                            }
-                        } catch (jsonError) {
-                            console.error("Erro ao parsear JSON das fontes:", jsonError, "String recebida:", sourcesJsonString);
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                
+                buffer += decoder.decode(value, { stream: true });
+
+                if (!sourcesReceived && buffer.includes('\n---\n')) {
+                    const parts = buffer.split('\n---\n', 2);
+                    const sourcesJsonString = parts[0];
+                    buffer = parts[1] || ''; 
+
+                    try {
+                        const data = JSON.parse(sourcesJsonString);
+                        if (data.sources && data.sources.length > 0) {
+                            sourcesList.innerHTML = data.sources.map(s => `<span class="inline-block bg-gray-200 rounded-full px-2 py-1">${s}</span>`).join('');
+                            sourcesContainer.classList.remove('hidden');
                         }
-                        sourcesReceived = true;
+                    } catch (jsonError) {
+                        console.error("Erro ao parsear JSON das fontes:", jsonError, "String recebida:", sourcesJsonString);
                     }
-                    
-                    if (sourcesReceived) {
-                        answerText.textContent += buffer;
-                        buffer = ''; 
-                    }
+                    sourcesReceived = true;
                 }
                 
-                // Finaliza o decode para qualquer sobra no buffer
-                if (buffer && !sourcesReceived) {
-                     answerText.textContent = "Não foi possível processar a resposta do servidor.";
+                if (sourcesReceived) {
+                    answerText.textContent += buffer;
+                    currentAnswer += buffer;
+                    buffer = ''; 
                 }
-
-            } catch (error) {
-                console.error('Falha ao buscar a resposta:', error);
-                answerText.textContent = 'Desculpe, ocorreu um erro ao tentar me comunicar com o servidor.';
-                loadingState.classList.add('hidden');
-                answerState.classList.remove('hidden');
             }
-        });
-    </script>
+            
+            if (buffer && !sourcesReceived) {
+                    answerText.textContent = "Não foi possível processar a resposta do servidor.";
+            }
+
+            // A lógica de salvar o histórico completo localmente não muda.
+            // A "janela" é aplicada apenas no momento de enviar para a API.
+            conversationHistory.push({ "role": "user", "content": question });
+            conversationHistory.push({ "role": "assistant", "content": currentAnswer });
+
+            questionInput.value = '';
+
+        } catch (error) {
+            console.error('Falha ao buscar a resposta:', error);
+            answerText.textContent = 'Desculpe, ocorreu um erro ao tentar me comunicar com o servidor.';
+            loadingState.classList.add('hidden');
+            answerState.classList.remove('hidden');
+        }
+    });
+</script>
 </body>
 </html>
