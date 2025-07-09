@@ -48,6 +48,7 @@
     </div>
 
     <script>
+    // ... (toda a parte de getElementById permanece a mesma) ...
     const form = document.getElementById('rag-form');
     const questionInput = document.getElementById('question-input');
     const loadingState = document.getElementById('loading-state');
@@ -60,36 +61,32 @@
     const RAILWAY_API_URL = "https://rag-api-siape-production.up.railway.app/query";
     const jokes = ["Analisando as portarias...", "Consultando o SIAPE...", "Buscando na base de conhecimento..."];
 
-    let conversationHistory = [];
-    
-    // <<<<< NOVO: Defina o tamanho da janela de memória >>>>>
-    // Manterá as últimas 4 mensagens (2 pares de pergunta/resposta).
-    const HISTORY_WINDOW_SIZE = 4; 
+    // <<<<< NOVO: Gerar um ID de sessão único para esta conversa >>>>>
+    const sessionId = `vivi-session-${Date.now()}-${Math.random().toString(36).substring(2)}`;
 
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const question = questionInput.value.trim();
         if (!question) return;
 
-        // Prepara a UI
+        // UI Prep (sem alterações)
         answerState.classList.add('hidden');
         sourcesContainer.classList.add('hidden');
-        let currentAnswer = '';
         answerText.textContent = '';
         sourcesList.innerHTML = '';
         loadingState.classList.remove('hidden');
         jokeText.textContent = jokes[Math.floor(Math.random() * jokes.length)];
 
-        try {
-            // <<<<< ALTERADO: Pega apenas a "fatia" mais recente do histórico >>>>>
-            const recentHistory = conversationHistory.slice(-HISTORY_WINDOW_SIZE);
+        let fullResponseText = ''; // Variável para acumular a resposta completa
 
+        try {
             const response = await fetch(RAILWAY_API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                // <<<<< ALTERADO: Enviamos a pergunta e o ID da sessão >>>>>
                 body: JSON.stringify({ 
                     question: question,
-                    history: recentHistory // Envia apenas o histórico recente
+                    session_id: sessionId
                 }),
             });
 
@@ -113,7 +110,8 @@
                     const parts = buffer.split('\n---\n', 2);
                     const sourcesJsonString = parts[0];
                     buffer = parts[1] || ''; 
-
+                    sourcesReceived = true; // Marca que as fontes foram recebidas
+                    
                     try {
                         const data = JSON.parse(sourcesJsonString);
                         if (data.sources && data.sources.length > 0) {
@@ -121,27 +119,17 @@
                             sourcesContainer.classList.remove('hidden');
                         }
                     } catch (jsonError) {
-                        console.error("Erro ao parsear JSON das fontes:", jsonError, "String recebida:", sourcesJsonString);
+                        console.error("Erro ao parsear JSON das fontes:", jsonError);
                     }
-                    sourcesReceived = true;
                 }
                 
                 if (sourcesReceived) {
                     answerText.textContent += buffer;
-                    currentAnswer += buffer;
+                    fullResponseText += buffer; // Acumula a resposta para salvar no histórico
                     buffer = ''; 
                 }
             }
             
-            if (buffer && !sourcesReceived) {
-                    answerText.textContent = "Não foi possível processar a resposta do servidor.";
-            }
-
-            // A lógica de salvar o histórico completo localmente não muda.
-            // A "janela" é aplicada apenas no momento de enviar para a API.
-            conversationHistory.push({ "role": "user", "content": question });
-            conversationHistory.push({ "role": "assistant", "content": currentAnswer });
-
             questionInput.value = '';
 
         } catch (error) {
