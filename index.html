@@ -6,25 +6,22 @@
     <title>Vivi IA - Assistente de Gestão de Pessoas</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* O CSS continua o mesmo */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
         body { font-family: 'Inter', sans-serif; background-color: #f0f2f5; }
         .card { background-color: white; border-radius: 16px; box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
         .loader { width: 48px; height: 48px; border: 5px solid #1d4ed8; border-bottom-color: transparent; border-radius: 50%; display: inline-block; box-sizing: border-box; animation: rotation 1s linear infinite; }
-        #answer-text { white-space: pre-wrap; word-wrap: break-word; }
+        #answer-text { white-space: pre-wrap; word-wrap: break-word; min-height: 50px; }
         @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
     <div class="card w-full max-w-2xl p-6 md:p-8">
-        <!-- O HTML do cabeçalho e do formulário continua o mesmo -->
         <div class="text-center mb-6">
             <h1 class="text-3xl font-bold text-gray-800">Vivi IA</h1>
             <p class="text-gray-500 mt-1">Sua especialista em Gestão de Pessoas e SIAPE.</p>
         </div>
         <form id="rag-form" class="space-y-4">
-            <!-- ... (o formulário continua o mesmo) ... -->
              <div>
                 <label for="question-input" class="block text-sm font-medium text-gray-700 mb-1">Sua dúvida:</label>
                 <textarea id="question-input" rows="4" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition" placeholder="Ex: Quais são as formas de vacância de cargo público?"></textarea>
@@ -34,7 +31,6 @@
             </button>
         </form>
 
-        <!-- Seção de Resposta (com novo campo para fontes) -->
         <div id="response-container" class="mt-8">
             <div id="loading-state" class="hidden text-center p-6 border-t border-gray-200">
                 <div class="loader mx-auto"></div>
@@ -43,28 +39,25 @@
             <div id="answer-state" class="hidden border-t border-gray-200 pt-6">
                 <h2 class="text-xl font-semibold text-gray-800 mb-3">Resposta da Vivi IA:</h2>
                 <div id="answer-text" class="text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-lg"></div>
-                <!-- <<<<< NOVO CAMPO PARA AS FONTES >>>>> -->
-                <div id="sources-container" class="mt-4">
+                <div id="sources-container" class="mt-4 hidden">
                     <h3 class="text-sm font-semibold text-gray-600">Fontes Consultadas:</h3>
-                    <div id="sources-list" class="text-xs text-gray-500 mt-1"></div>
+                    <div id="sources-list" class="flex flex-wrap gap-2 text-xs text-gray-500 mt-2"></div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        // Seletores dos novos elementos
-        const sourcesContainer = document.getElementById('sources-container');
-        const sourcesList = document.getElementById('sources-list');
-        const RAILWAY_API_URL = "https://rag-api-siape-production.up.railway.app/query";
-        
-        // O resto dos seletores e a lista de piadas continuam os mesmos
         const form = document.getElementById('rag-form');
         const questionInput = document.getElementById('question-input');
         const loadingState = document.getElementById('loading-state');
         const answerState = document.getElementById('answer-state');
         const answerText = document.getElementById('answer-text');
         const jokeText = document.getElementById('joke-text');
+        const sourcesContainer = document.getElementById('sources-container');
+        const sourcesList = document.getElementById('sources-list');
+        
+        const RAILWAY_API_URL = "https://rag-api-siape-production.up.railway.app/query";
         const jokes = ["Analisando as portarias...", "Consultando o SIAPE...", "Buscando na base de conhecimento..."];
 
         form.addEventListener('submit', async (e) => {
@@ -81,7 +74,6 @@
             jokeText.textContent = jokes[Math.floor(Math.random() * jokes.length)];
 
             try {
-                // <<<<< LÓGICA DO FETCH ATUALIZADA PARA O NOVO PROTOCOLO >>>>>
                 const response = await fetch(RAILWAY_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -104,37 +96,37 @@
                     
                     buffer += decoder.decode(value, { stream: true });
 
-                    // Procura pelo nosso separador ---
                     if (!sourcesReceived && buffer.includes('\n---\n')) {
-                        const parts = buffer.split('\n---\n');
+                        const parts = buffer.split('\n---\n', 2);
                         const sourcesJsonString = parts[0];
-                        buffer = parts.slice(1).join('\n---\n'); // Guarda o resto no buffer
+                        buffer = parts[1] || ''; // O resto do buffer é o início da resposta
 
                         try {
                             const data = JSON.parse(sourcesJsonString);
                             if (data.sources && data.sources.length > 0) {
-                                sourcesList.innerHTML = data.sources.map(s => `<span class="inline-block bg-gray-200 rounded-full px-2 py-1 mr-1 mb-1">${s}</span>`).join('');
+                                sourcesList.innerHTML = data.sources.map(s => `<span class="inline-block bg-gray-200 rounded-full px-2 py-1">${s}</span>`).join('');
                                 sourcesContainer.classList.remove('hidden');
                             }
                         } catch (jsonError) {
-                            console.error("Erro ao parsear JSON das fontes:", jsonError);
+                            console.error("Erro ao parsear JSON das fontes:", jsonError, "String recebida:", sourcesJsonString);
                         }
                         sourcesReceived = true;
                     }
                     
                     if (sourcesReceived) {
                         answerText.textContent += buffer;
-                        buffer = ''; // Limpa o buffer após exibir
+                        buffer = ''; 
                     }
                 }
-                // Exibe qualquer resto do buffer
-                if (buffer && sourcesReceived) {
-                    answerText.textContent += buffer;
+                
+                // Finaliza o decode para qualquer sobra no buffer
+                if (buffer && !sourcesReceived) {
+                     answerText.textContent = "Não foi possível processar a resposta do servidor.";
                 }
 
             } catch (error) {
                 console.error('Falha ao buscar a resposta:', error);
-                answerText.textContent = 'Desculpe, ocorreu um erro ao tentar me comunicar.';
+                answerText.textContent = 'Desculpe, ocorreu um erro ao tentar me comunicar com o servidor.';
                 loadingState.classList.add('hidden');
                 answerState.classList.remove('hidden');
             }
